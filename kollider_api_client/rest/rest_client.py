@@ -1,8 +1,5 @@
 import requests
 
-BASE_URL = "https://api.kollider.xyz/v1/"
-
-
 class KolliderRestClient(object):
 
 	def __init__(self, base_url, api_key=None):
