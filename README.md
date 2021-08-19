@@ -11,4 +11,8 @@ pip install -e .
 
 <a href="https://docs-api.kollider.xyz"> 📕 The docs can be found here.</a>
 
+<code>TODO:</code> <br>
+- [ ] Error Handling <br>
+- [ ] Add missing methods (see docs)
+
 **Note**: Not all methods have been implemented yet. This is very much a WIP. 
