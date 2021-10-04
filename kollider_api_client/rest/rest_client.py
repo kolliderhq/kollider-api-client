@@ -1,17 +1,27 @@
 import requests
+import time
+from kollider_api_client.auth import auth_header
+
+BASE_URL = "http://api.kollider.xyz/v1"
+API_KEY = "<API_KEY>"
+API_SECRET = "<API_SECRET>"
+API_PASSPHRASE = "<API_PASSPHRASE>"
 
 class KolliderRestClient(object):
 
-	def __init__(self, base_url, api_key=None):
+	def __init__(self, base_url, api_key=None, secret=None, passphrase=None):
 		self.base_url = base_url
 		self.api_key = api_key
+		self.secret = secret
+		self.passphrase = passphrase
 
-	def __authorization_header(self):
+	def __authorization_header(self, method, path, body=None):
+		header = auth_header(self.secret, method, path, body)
+		header["k-passphrase"] = self.passphrase
+		header["k-api-key"] = self.api_key
 		if not self.api_key:
 			raise Exception("No api key found!")
-		return {
-			"Authorization": self.api_key,
-		}
+		return header
 	
 	# Public Methods
 	def get_tradeable_symbols(self):
@@ -51,11 +61,18 @@ class KolliderRestClient(object):
 		except Exception as e:
 			print(e)
 
-	def get_funding_rates(self):
+	def get_average_funding_rates(self, start=None, end=None):
 		''' 
 		Returns current funding rates for every perp.
 		'''
-		endpoint = self.base_url + "market/funding_rates"
+		endpoint = self.base_url + "market/average_funding_rates"
+		if start is None:
+			start = int(time.time() * 1000) - 60 * 60
+		if end is None:
+			end = int(time.time() * 1000)
+		if end < start:
+			raise Exception
+		endpoint += "?start={}&end={}".format(start, end)
 		try:
 			resp = requests.get(endpoint)
 			return resp.json()
@@ -65,38 +82,45 @@ class KolliderRestClient(object):
 	# Private Method (Need valid api key)
 	def get_open_orders(self):
 		'''Returns all currently open limit orders of a user.'''
-		endpoint = self.base_url + "orders/open"
+		route = "/orders/open"
+		endpoint = self.base_url + route
 		try:
-			resp = requests.get(endpoint, headers=self.__authorization_header())
+			headers = self.__authorization_header("GET", route, None)
+			resp = requests.get(endpoint, headers=headers)
 			return resp.json()
 		except Exception as e:
 			print(e)
 
 	def get_positions(self):
 		'''Returns all active positions of a user.'''
-		endpoint = self.base_url + "positions"
+		route = "/positions"
+		endpoint = self.base_url + route
 		try:
-			resp = requests.get(endpoint, headers=self.__authorization_header())
+			headers = self.__authorization_header("GET", route, None)
+			resp = requests.get(endpoint, headers=headers)
 			return resp.json()
 		except Exception as e:
 			print(e)
 
 	def make_deposit(self, amount, network="Ln"):
 		'''Requests a deposit'''
-		endpoint = self.base_url + "wallet/deposit"
+		route = "/wallet/deposit"
+		endpoint = self.base_url + route
 		body = {
 			"type": network,
 			"amount": amount
 		}
 		try:
-			resp = requests.post(endpoint, json=body, headers=self.__authorization_header())
+			headers = self.__authorization_header("POST", route, body)
+			resp = requests.post(endpoint, json=body, headers=headers)
 			return resp.json()
 		except Exception as e:
 			print(e)
 
 	def make_withdrawal(self, amount, network="Ln", payment_request=None):
 		'''Requests withdrawal'''
-		endpoint = self.base_url + "wallet/withdrawal"
+		route = "/wallet/withdrawal"
+		endpoint = self.base_url + route
 		body = {
 			"type": network,
 			"amount": amount
@@ -106,27 +130,38 @@ class KolliderRestClient(object):
 				raise Exception("Need to specify a payment request on Lightning Network.")
 			body["payment_request"] = payment_request
 		try:
-			resp = requests.post(endpoint, json=body, headers=self.__authorization_header())
+			headers = self.__authorization_header("POST", route, body)
+			resp = requests.post(endpoint, json=body, headers=headers)
 			return resp.json()
 		except Exception as e:
 			print(e)
 
 	def place_order(self, order):
-		endpoint = self.base_url + "orders"
+		route = "/orders"
+		endpoint = self.base_url + route
+		body = order.to_dict()
 		try:
-			resp = requests.post(endpoint, json=order, headers=self.__authorization_header())
-			print(resp)
+			headers = self.__authorization_header("POST", route, body)
+			resp = requests.post(endpoint, json=body, headers=headers)
 			return resp.json()
 		except Exception as e:
 			print(e)
 
 	def cancel_order(self, order_id, symbol):
-		endpoint = self.base_url + "orders"
+		route = "/orders"
+		endpoint = self.base_url + route
 		params = "?order_id={}&symbol={}".format(order_id, symbol)
+		auth_body = {
+			"order_id": order_id,
+			"symbol": symbol,
+		}
 		endpoint += params
 		try:
-			resp = requests.delete(endpoint, headers=self.__authorization_header())
-			print(resp)
+			headers = self.__authorization_header("DELETE", route, auth_body)
+			resp = requests.delete(endpoint, headers=headers)
 			return resp.json()
 		except Exception as e:
 			print(e)
+
+if "__main__" in __name__:
+	cli = KolliderRestClient(BASE_URL, API_KEY, API_SECRET, API_PASSPHRASE)

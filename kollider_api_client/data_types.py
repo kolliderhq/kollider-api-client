@@ -15,20 +15,20 @@ class Order(object):
 	leverage: int = 100
 	side: str = "Bid"
 	price: int = 400000
-	ext_order_id: str = str(uuid.uuid4())
+	# ext_order_id: str = str(uuid.uuid4())
 	order_type: str = "Limit"
 	margin_type: str = "Isolated"
 	settlement_type: str = "Instant"
 
 	def to_dict(self):
 		return {
-			"symbol": self.symbol,
-			"quantity": self.quantity,
-			"leverage": self.leverage,
-			"side": self.side,
 			"price": self.price,
-			"ext_order_id": self.ext_order_id,
 			"order_type": self.order_type,
+			"side": self.side,
+			"quantity": self.quantity,
+			"symbol": self.symbol,
+			"leverage": self.leverage,
+			# "ext_order_id": self.ext_order_id,
 			"margin_type": self.margin_type,
 			"settlement_type": self.settlement_type
 		}
