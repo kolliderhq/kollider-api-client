@@ -11,9 +11,6 @@ with hooks():
     from urllib.parse import urlparse, urlunparse
 
 BASE_URL = "wss://api.kollider.xyz/v1/ws/"
-API_KEY = "<API_KEY>"
-API_SECRET = "<API_SECRET>"
-API_PASSPHRASE = "<API_PASSPHRASE>"
 
 POSITION_STATE = "position_states"
 INDEX_VALUE = "index_values"
@@ -37,11 +34,17 @@ class KolliderWsClient(object):
     _max_connection_attempts = 5
     is_open = threading.Event()
 
-    def connect(self, base_url=""):
+    def connect(self, base_url=None, api_key=None, api_secret=None, api_passphrase=None):
         '''Connect to the websockets'''
 
         print("----------- CONNECTING TO WS --------------")
-        print("API KEY: {}".format(API_KEY))
+
+        if not base_url:
+            base_url = BASE_URL
+
+        self.api_key = api_key
+        self.api_secret = api_secret
+        self.api_passphrase = api_passphrase
 
         self.is_authenticated = False
         self.is_connecting = threading.Event()
@@ -80,13 +83,13 @@ class KolliderWsClient(object):
         self.is_open.set()
 
     def auth(self):
-        (timestamp, signature) = generate_signature(API_SECRET, "authentication")
+        (timestamp, signature) = generate_signature(self.api_secret, "authentication")
         msg = {
             "type": "authenticate",
-            "token": API_KEY,
+            "token": self.api_key,
             "timestamp": str(timestamp),
             "signature": signature,
-            "passphrase": API_PASSPHRASE,
+            "passphrase": self.api_passphrase,
         }
         json_msg = json.dumps(msg)
         self.ws.send(json_msg)
@@ -194,7 +197,7 @@ class KolliderWsClient(object):
     def has_fetched_initial_data(self):
         return self.has_fetched_symbols and self.has_fetched_whoami
 
-    def on_pong(self, data):
+    def on_pong(self, _arg1, _arg2):
         print("------------------- RECEIVED PONG -----------------")
 
     def on_ping(self):
@@ -208,7 +211,8 @@ class KolliderWsClient(object):
         '''This is where all the initialisation logic should be. If you don't subscribe to anything
         or don't authenticate to the session the WS will kick you out automatically after 10s.'''
         print("------------------- OPEN WS -------------------")
-        # self.auth()
+        if self.api_key and self.api_passphrase and self.api_secret:
+            self.auth()
 
     def on_error(self, exception_obj, something_else):
         print("------------------- ERROR WS -------------------")
@@ -216,11 +220,13 @@ class KolliderWsClient(object):
         self.is_open.clear()
 
     def on_message(self, _msg, msg):
+        print(msg)
         msg = json.loads(msg)
         t = msg["type"]
         data = msg["data"]
         if t == AUTHENTICATE:
             if data["message"] == "success":
+                print("Authenticated Successfully!")
                 self.is_authenticated = True
             else:
                 print("Auth Unsuccessful: {}".format(data))

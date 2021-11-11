@@ -1,1 +1,1 @@
-from .ws_client import KolliderWsClient
+from .ws_client import *
