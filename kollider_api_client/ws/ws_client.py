@@ -111,6 +111,15 @@ class KolliderWsClient(object):
         json_msg = json.dumps(msg)
         self.ws.send(json_msg)
 
+    def sub_orderbook_l2(self, symbol):
+        msg = {
+            "type": "subscribe",
+            "channels": ["orderbook_level2"],
+            "symbols": [symbol]
+        }
+        json_msg = json.dumps(msg)
+        self.ws.send(json_msg)
+
     def sub_mark_price(self, symbols=["BTCUSD.PERP"]):
         msg = {
             "type": "subscribe",

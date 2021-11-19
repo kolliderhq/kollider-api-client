@@ -2,10 +2,10 @@ import requests
 import time
 from kollider_api_client.auth import auth_header
 
-BASE_URL = "http://api.kollider.xyz/v1"
-API_KEY = "<API_KEY>"
-API_SECRET = "<API_SECRET>"
-API_PASSPHRASE = "<API_PASSPHRASE>"
+BASE_URL = "http://127.0.0.1:8443"
+API_KEY = ""
+API_SECRET = ""
+API_PASSPHRASE = ""
 
 class KolliderRestClient(object):
 
@@ -136,6 +136,22 @@ class KolliderRestClient(object):
 		except Exception as e:
 			print(e)
 
+	def change_margin(self, action, symbol, amount):
+		'''Requests withdrawal'''
+		route = "/change_margin"
+		endpoint = self.base_url + route
+		body = {
+			"amount": amount,
+			"action": action,
+			"symbol": symbol,
+		}
+		try:
+			headers = self.__authorization_header("POST", route, body)
+			resp = requests.post(endpoint, json=body, headers=headers)
+			return resp.json()
+		except Exception as e:
+			print(e)
+
 	def place_order(self, order):
 		route = "/orders"
 		endpoint = self.base_url + route
@@ -165,3 +181,5 @@ class KolliderRestClient(object):
 
 if "__main__" in __name__:
 	cli = KolliderRestClient(BASE_URL, API_KEY, API_SECRET, API_PASSPHRASE)
+	resp = cli.change_margin("Add", "BTCUSD.PERP", 100)
+	print(resp)
