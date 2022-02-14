@@ -3,9 +3,9 @@ import time
 from kollider_api_client.auth import auth_header
 
 BASE_URL = "http://127.0.0.1:8443"
-API_KEY = ""
-API_SECRET = ""
-API_PASSPHRASE = ""
+API_KEY = "5+Ji59f0uflFW/z8lL311Q=="
+API_SECRET = "o37TLh+F5XXQ8M+uFDlsNjM0fCmH5pcElTvN2+3PWeM="
+API_PASSPHRASE = "passphrase"
 
 class KolliderRestClient(object):
 
@@ -180,6 +180,12 @@ class KolliderRestClient(object):
 			print(e)
 
 if "__main__" in __name__:
+	from kollider_api_client.data_types import Order
 	cli = KolliderRestClient(BASE_URL, API_KEY, API_SECRET, API_PASSPHRASE)
-	resp = cli.change_margin("Add", "BTCUSD.PERP", 100)
+	# resp = cli.make_withdrawal(amount=100, payment_request="l")
+	# resp = cli.make_deposit(100)
+	# resp = cli.get_open_orders()
+	order = Order()	
+	order.symbol = "BTCUSD.PERP"
+	resp = cli.place_order(order)
 	print(resp)

@@ -33,8 +33,9 @@ class KolliderWsClient(object):
     _connection_attempt = 0
     _max_connection_attempts = 5
     is_open = threading.Event()
+    wst = None
 
-    def connect(self, base_url=None, api_key=None, api_secret=None, api_passphrase=None):
+    def connect(self, base_url=None, api_key=None, api_secret=None, api_passphrase=None, jwt=None):
         '''Connect to the websockets'''
 
         print("----------- CONNECTING TO WS --------------")
@@ -45,6 +46,7 @@ class KolliderWsClient(object):
         self.api_key = api_key
         self.api_secret = api_secret
         self.api_passphrase = api_passphrase
+        self.jwt = jwt
 
         self.is_authenticated = False
         self.is_connecting = threading.Event()
@@ -82,6 +84,14 @@ class KolliderWsClient(object):
         self.is_connecting.clear()
         self.is_open.set()
 
+    def reconnect(self, base_url):
+        self.is_authenticated = False
+        self.is_connecting = threading.Event()
+        self.__connect(base_url)
+
+    def set_jwt(self, jwt):
+        self.jwt = jwt
+
     def auth(self):
         (timestamp, signature) = generate_signature(self.api_secret, "authentication")
         msg = {
@@ -92,6 +102,15 @@ class KolliderWsClient(object):
             "passphrase": self.api_passphrase,
         }
         json_msg = json.dumps(msg)
+        self.ws.send(json_msg)
+
+    def jwt_auth(self):
+        msg = {
+            "type": "authenticate",
+            "token": self.jwt,
+        }
+        json_msg = json.dumps(msg)
+        print(json_msg)
         self.ws.send(json_msg)
 
     def sub_ticker(self, symbols):
@@ -212,7 +231,7 @@ class KolliderWsClient(object):
     def on_ping(self):
         print("-------------------- RECEIVED PING ----------------")
 
-    def on_close(self, _event, _event2):
+    def on_close(self, _event, _event2, _event3):
         print("------------------- CLOSE WS -------------------")
         self.is_open.clear()
 
@@ -222,14 +241,16 @@ class KolliderWsClient(object):
         print("------------------- OPEN WS -------------------")
         if self.api_key and self.api_passphrase and self.api_secret:
             self.auth()
+        if self.jwt:
+            print('----------------- JET available ------------------------')
+            self.jwt_auth()
 
     def on_error(self, exception_obj, something_else):
         print("------------------- ERROR WS -------------------")
         print("{}".format(something_else))
         self.is_open.clear()
 
-    def on_message(self, _msg, msg):
-        print(msg)
+    def on_message(self, _msg, _msg1, msg):
         msg = json.loads(msg)
         t = msg["type"]
         data = msg["data"]
