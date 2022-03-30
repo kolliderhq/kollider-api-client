@@ -3,9 +3,9 @@ import time
 from kollider_api_client.auth import auth_header
 
 BASE_URL = "http://127.0.0.1:8443"
-API_KEY = "5+Ji59f0uflFW/z8lL311Q=="
-API_SECRET = "o37TLh+F5XXQ8M+uFDlsNjM0fCmH5pcElTvN2+3PWeM="
-API_PASSPHRASE = "passphrase"
+API_KEY = "mYmv9yfyaFpYJ1Zx686wtw=="
+API_SECRET = "y7GzmbwNezL/tBLU7sRmkTdbfYCPiz0UnsEUYCNPFmY="
+API_PASSPHRASE = "main"
 
 class KolliderRestClient(object):
 
@@ -22,11 +22,11 @@ class KolliderRestClient(object):
 		if not self.api_key:
 			raise Exception("No api key found!")
 		return header
-	
+
 	# Public Methods
 	def get_tradeable_symbols(self):
 		''' Returns all symbols and their specification that are availble to trade.'''
-		endpoint = self.base_url + "market/products"
+		endpoint = self.base_url + "/market/products"
 		try:
 			resp = requests.get(endpoint)
 			return resp.json()
@@ -34,14 +34,14 @@ class KolliderRestClient(object):
 			print(e)
 
 	def get_orderbook(self, symbol, level="Level2"):
-		''' 
+		'''
 		Returns the orderbook for a specific symbol. NOTE: Don't long poll this. Use the
 		Websockets for any real time state keeping of the Orderbook.
 		params:
 			symbol: <Product Symbol>
 			level: Level2 | Level3
 		'''
-		endpoint = self.base_url + "market/orderbook?symbol={}&level={}".format(symbol, level)
+		endpoint = self.base_url + "/market/orderbook?symbol={}&level={}".format(symbol, level)
 		try:
 			resp = requests.get(endpoint)
 			return resp.json()
@@ -49,12 +49,12 @@ class KolliderRestClient(object):
 			print(e)
 
 	def get_ticker(self, symbol):
-		''' 
+		'''
 		Returns the ticker for a given symbol
 		params:
 			symbol: <Product Symbol>
 		'''
-		endpoint = self.base_url + "market/ticker?symbol={}".format(symbol)
+		endpoint = self.base_url + "/market/ticker?symbol={}".format(symbol)
 		try:
 			resp = requests.get(endpoint)
 			return resp.json()
@@ -62,10 +62,10 @@ class KolliderRestClient(object):
 			print(e)
 
 	def get_average_funding_rates(self, start=None, end=None):
-		''' 
+		'''
 		Returns current funding rates for every perp.
 		'''
-		endpoint = self.base_url + "market/average_funding_rates"
+		endpoint = self.base_url + "/market/average_funding_rates"
 		if start is None:
 			start = int(time.time() * 1000) - 60 * 60
 		if end is None:
@@ -75,6 +75,96 @@ class KolliderRestClient(object):
 		endpoint += "?start={}&end={}".format(start, end)
 		try:
 			resp = requests.get(endpoint)
+			return resp.json()
+		except Exception as e:
+			print(e)
+
+	def get_historical_funding_payments(self, symbol, start=None, end=None):
+		'''
+		Returns the historical funding payments received by a wallet.
+		'''
+		base_path = "/user/historical_funding_payments"
+		route = self.base_url + base_path + "?symbol={}".format(symbol)
+		if start is not None:
+			route += "?start={}".format(start)
+		if end is not None:
+			route += "&end={}".format(end)
+		if start and end and end < start:
+			raise Exception
+
+		auth_body = {
+			"symbol": symbol if symbol else None,
+			"start": start if start else None,
+			"end": end if end else None,
+		}
+
+		try:
+			headers = self.__authorization_header("GET", base_path, auth_body)
+			resp = requests.get(route, headers=headers)
+			return resp.json()
+		except Exception as e:
+			print(e)
+
+	def get_historical_deposits(self, network=None, limit=None, start=None, end=None):
+		'''
+		Returns the historical deposit for a wallet.
+		'''
+		base_path = "/user/historic_deposits"
+		route = self.base_url + base_path
+		auth_body = {}
+		if start is not None:
+			route += "?start={}".format(start)
+		if end is not None:
+			route += "&end={}".format(end)
+		if start and end and end < start:
+			raise Exception
+		if limit is not None:
+			route += "&limit={}".format(limit)
+		if network is not None:
+			route += "&network={}".format(network)
+
+		auth_body = {
+			"start": None if not start else start,
+			"end": None if not end else end,
+			"limit": None if not limit else limit,
+			"network": None if not network else network
+		}
+
+		try:
+			headers = self.__authorization_header("GET", base_path, auth_body)
+			resp = requests.get(route, headers=headers)
+			return resp.json()
+		except Exception as e:
+			print(e)
+
+	def get_historical_withdrawals(self, network=None, limit=None, start=None, end=None):
+		'''
+		Returns the historical withdrawals for a wallet.
+		'''
+		base_path = "/user/historic_withdrawals"
+		route = self.base_url + base_path
+		auth_body = {}
+		if start is not None:
+			route += "?start={}".format(start)
+		if end is not None:
+			route += "&end={}".format(end)
+		if start and end and end < start:
+			raise Exception
+		if limit is not None:
+			route += "&limit={}".format(limit)
+		if network is not None:
+			route += "&network={}".format(network)
+
+		auth_body = {
+			"start": None if not start else start,
+			"end": None if not end else end,
+			"limit": None if not limit else limit,
+			"network": None if not network else network
+		}
+
+		try:
+			headers = self.__authorization_header("GET", base_path, auth_body)
+			resp = requests.get(route, headers=headers)
 			return resp.json()
 		except Exception as e:
 			print(e)
@@ -182,10 +272,5 @@ class KolliderRestClient(object):
 if "__main__" in __name__:
 	from kollider_api_client.data_types import Order
 	cli = KolliderRestClient(BASE_URL, API_KEY, API_SECRET, API_PASSPHRASE)
-	# resp = cli.make_withdrawal(amount=100, payment_request="l")
-	# resp = cli.make_deposit(100)
-	# resp = cli.get_open_orders()
-	order = Order()	
-	order.symbol = "BTCUSD.PERP"
-	resp = cli.place_order(order)
+	resp = cli.get_historical_funding_payments("BTCUSD.PERP")
 	print(resp)
