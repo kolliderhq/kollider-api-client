@@ -1,11 +1,12 @@
 import requests
 import time
 from kollider_api_client.auth import auth_header
+from urllib.parse import urlencode
 
 BASE_URL = "http://127.0.0.1:8443"
-API_KEY = "mYmv9yfyaFpYJ1Zx686wtw=="
-API_SECRET = "y7GzmbwNezL/tBLU7sRmkTdbfYCPiz0UnsEUYCNPFmY="
-API_PASSPHRASE = "main"
+API_KEY = "<API_KEY>"
+API_SECRET = "<API_SECRET>"
+API_PASSPHRASE = "<API_SECRET>"
 
 class KolliderRestClient(object):
 
@@ -79,23 +80,50 @@ class KolliderRestClient(object):
 		except Exception as e:
 			print(e)
 
+	### PRIVATE API ENDPOINTS
+
+	def get_wallet_balances(self):
+		'''Returns users wallet balances.'''
+		base_path = "/user/balances"
+		route = self.base_url + base_path
+		try:
+			headers = self.__authorization_header("GET", base_path, None)
+			resp = requests.get(route, headers=headers)
+			return resp.json()
+		except Exception as e:
+			print(e)
+
+	def get_user_account(self):
+		'''Returns meta data about the user account.'''
+		base_path = "/user/account"
+		route = self.base_url + base_path
+		try:
+			headers = self.__authorization_header("GET", base_path, None)
+			resp = requests.get(route, headers=headers)
+			return resp.json()
+		except Exception as e:
+			print(e)
+
 	def get_historical_funding_payments(self, symbol, start=None, end=None):
 		'''
 		Returns the historical funding payments received by a wallet.
 		'''
 		base_path = "/user/historical_funding_payments"
-		route = self.base_url + base_path + "?symbol={}".format(symbol)
+		route = self.base_url + base_path
+		url = {"symbol": symbol}
 		if start is not None:
-			route += "?start={}".format(start)
+			url["start"] = start
 		if end is not None:
-			route += "&end={}".format(end)
+			url["end"] = end
 		if start and end and end < start:
 			raise Exception
 
+		query = urlencode(url)
+		route += "?" + query
 		auth_body = {
 			"symbol": symbol if symbol else None,
-			"start": start if start else None,
 			"end": end if end else None,
+			"start": start if start else None,
 		}
 
 		try:
@@ -112,16 +140,20 @@ class KolliderRestClient(object):
 		base_path = "/user/historic_deposits"
 		route = self.base_url + base_path
 		auth_body = {}
+		url = {}
 		if start is not None:
-			route += "?start={}".format(start)
+			url["start"] = start
 		if end is not None:
-			route += "&end={}".format(end)
+			url["end"] = end
 		if start and end and end < start:
 			raise Exception
 		if limit is not None:
-			route += "&limit={}".format(limit)
+			url["limit"] = limit 
 		if network is not None:
-			route += "&network={}".format(network)
+			url["network"] = network
+		query = urlencode(url)
+
+		route += "?" + query
 
 		auth_body = {
 			"start": None if not start else start,
@@ -144,16 +176,20 @@ class KolliderRestClient(object):
 		base_path = "/user/historic_withdrawals"
 		route = self.base_url + base_path
 		auth_body = {}
+		url = {}
 		if start is not None:
-			route += "?start={}".format(start)
+			url["start"] = start
 		if end is not None:
-			route += "&end={}".format(end)
+			url["end"] = end
 		if start and end and end < start:
 			raise Exception
 		if limit is not None:
-			route += "&limit={}".format(limit)
+			url["limit"] = limit 
 		if network is not None:
-			route += "&network={}".format(network)
+			url["network"] = network 
+
+		query = urlencode(url)
+		route += "?" + query
 
 		auth_body = {
 			"start": None if not start else start,
@@ -272,5 +308,6 @@ class KolliderRestClient(object):
 if "__main__" in __name__:
 	from kollider_api_client.data_types import Order
 	cli = KolliderRestClient(BASE_URL, API_KEY, API_SECRET, API_PASSPHRASE)
-	resp = cli.get_historical_funding_payments("BTCUSD.PERP")
-	print(resp)
+	order = Order()
+	order.symbol = "BTCUSD.PERP"
+	resp = cli.place_order(order)
