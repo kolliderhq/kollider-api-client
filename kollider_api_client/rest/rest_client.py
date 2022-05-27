@@ -10,18 +10,25 @@ API_PASSPHRASE = "<API_SECRET>"
 
 class KolliderRestClient(object):
 
-	def __init__(self, base_url, api_key=None, secret=None, passphrase=None):
+	def __init__(self, base_url, api_key=None, secret=None, passphrase=None, jwt=None):
 		self.base_url = base_url
 		self.api_key = api_key
 		self.secret = secret
 		self.passphrase = passphrase
+		self.jwt = jwt
 
 	def __authorization_header(self, method, path, body=None):
-		header = auth_header(self.secret, method, path, body)
-		header["k-passphrase"] = self.passphrase
-		header["k-api-key"] = self.api_key
-		if not self.api_key:
-			raise Exception("No api key found!")
+		if self.secret is None and self.api_key is None and self.passphrase is None:
+			header = auth_header(self.jwt, method, path, body)
+			header["authorization"] = ""
+			if not self.jwt:
+				raise Exception("No JWT found!")
+		else:
+			header = auth_header(self.secret, method, path, body)
+			header["k-passphrase"] = self.passphrase
+			header["k-api-key"] = self.api_key
+			if not self.api_key:
+				raise Exception("No api key found!")
 		return header
 
 	# Public Methods
@@ -263,7 +270,7 @@ class KolliderRestClient(object):
 			print(e)
 
 	def change_margin(self, action, symbol, amount):
-		'''Requests withdrawal'''
+		'''Changes margin'''
 		route = "/change_margin"
 		endpoint = self.base_url + route
 		body = {
