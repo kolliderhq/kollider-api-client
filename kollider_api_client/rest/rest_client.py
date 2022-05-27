@@ -19,8 +19,8 @@ class KolliderRestClient(object):
 
 	def __authorization_header(self, method, path, body=None):
 		if self.secret is None and self.api_key is None and self.passphrase is None:
-			header = auth_header(self.jwt, method, path, body)
-			header["authorization"] = ""
+			header = {}
+			header["authorization"] = self.jwt
 			if not self.jwt:
 				raise Exception("No JWT found!")
 		else:
