@@ -10,12 +10,13 @@ API_PASSPHRASE = "<API_SECRET>"
 
 class KolliderRestClient(object):
 
-	def __init__(self, base_url, api_key=None, secret=None, passphrase=None, jwt=None):
+	def __init__(self, base_url, api_key=None, secret=None, passphrase=None, jwt=None, jwt_refresh=None):
 		self.base_url = base_url
 		self.api_key = api_key
 		self.secret = secret
 		self.passphrase = passphrase
 		self.jwt = jwt
+		self.jwt_refresh = jwt_refresh
 
 	def __authorization_header(self, method, path, body=None):
 		if self.secret is None and self.api_key is None and self.passphrase is None:
@@ -30,6 +31,17 @@ class KolliderRestClient(object):
 			if not self.api_key:
 				raise Exception("No api key found!")
 		return header
+	
+	def renew_jwt(self):
+		endpoint = self.base_url + "/auth/refresh_token"
+		body = {
+			refresh: self.jwt_refresh
+		}
+		try:
+			resp = requests.post(endpoint, json=body)
+			return resp.json()
+		except Exception as e:
+			print(e)
 
 	# Public Methods
 	def get_tradeable_symbols(self):
