@@ -35,7 +35,7 @@ class KolliderRestClient(object):
 	def renew_jwt(self):
 		endpoint = self.base_url + "/auth/refresh_token"
 		body = {
-			refresh: self.jwt_refresh
+			"refresh": self.jwt_refresh
 		}
 		try:
 			resp = requests.post(endpoint, json=body)
