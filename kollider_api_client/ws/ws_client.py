@@ -5,6 +5,8 @@ import threading
 import ssl
 from time import sleep
 import json
+import copy
+from BTrees.OOBTree import OOBTree
 
 from future.standard_library import hooks
 with hooks():
@@ -22,12 +24,20 @@ USER_POSITIONS = "positions"
 USER_ACCOUNTS = "balances"
 OPEN_ORDERS = "open_orders"
 RECEIVED = "received"
+LEVEL_2_STATE = "level2state"
 DONE = "done"
 OPEN = "open"
 TRADABLE_SYMBOLS = "tradable_symbols"
 ERROR = "error"
 WHOAMI = "whoami"
 ORDER_REJECTION = "order_rejection"
+
+class Orderbook(object):
+
+    def __init__(self):
+        self.bids = copy.copy(OOBTree())
+        self.asks = copy.copy(OOBTree())
+        self.level = "l2"
 
 class KolliderWsClient(object):
     _connection_attempt = 0
@@ -47,6 +57,8 @@ class KolliderWsClient(object):
         self.api_secret = api_secret
         self.api_passphrase = api_passphrase
         self.jwt = jwt
+        self.orderbooks = {}
+        self.last_orderbook_seq = None
 
         self.is_authenticated = False
         self.is_connecting = threading.Event()
@@ -76,7 +88,11 @@ class KolliderWsClient(object):
                                          )
         self.is_connecting.set()
         self.wst = threading.Thread(
-            target=lambda: self.ws.run_forever(ping_interval=10, ping_timeout=5))
+            target=lambda: self.ws.run_forever(ping_interval=10, ping_timeout=5, 
+            sslopt={"cert_reqs": ssl.CERT_NONE,
+                   "check_hostname": False,
+                   "ssl_version": ssl.PROTOCOL_TLSv1}
+                                               ))
         self.wst.daemon = True
         self.wst.start()
 
@@ -185,6 +201,16 @@ class KolliderWsClient(object):
         json_msg = json.dumps(msg)
         self.ws.send(json_msg)
 
+    def fetch_orderbook(self, symbol):
+        msg = {
+            "type": "fetch_orderbook",
+            "timestamp": 0,
+            "symbol": symbol,
+            "res": "Level2"
+        }
+        json_msg = json.dumps(msg)
+        self.ws.send(json_msg)
+
     def fetch_symbols(self):
         msg = {
             "type": "fetch_tradable_symbols",
@@ -214,6 +240,10 @@ class KolliderWsClient(object):
     def cancel_order(self, cancel_order):
         cancel_order["type"] = "cancel_order"
         self.ws.send(json.dumps(cancel_order))
+
+    def cancel_all(self, cancel_all):
+        cancel_all["type"] = "cancel_all"
+        self.ws.send(json.dumps(cancel_all))
 
     def withdrawal_request(self, withrawal_request):
         withrawal_request["type"] = "withdrawal_request"
@@ -250,7 +280,7 @@ class KolliderWsClient(object):
         print("{}".format(something_else))
         self.is_open.clear()
 
-    def on_message(self, _msg, _msg1, msg):
+    def on_message(self, _msg, msg):
         msg = json.loads(msg)
         t = msg["type"]
         data = msg["data"]
@@ -316,6 +346,43 @@ class KolliderWsClient(object):
             print("Received Order Rejection.")
             print(data)
 
+        elif t == LEVEL_2_STATE:
+            if self.last_orderbook_seq and self.last_orderbook_seq != data["seq_number"] - 1:
+                print("Seq number missmatch")
+                # Fetching orderbook state.
+                self.fetch_orderbook(data["symbol"])
+            else:
+                self.last_orderbook_seq = data["seq_number"]
+            if data["update_type"] == "snapshot":
+                ob = copy.copy(Orderbook())
+                for key, value in data["bids"].items():
+                    ob.bids[int(key)] = value
+
+                for key, value in data["asks"].items():
+                    ob.asks[int(key)] = value
+
+                if self.orderbooks.get(data["symbol"]) is not None:
+                    del self.orderbooks[data["symbol"]]
+                self.orderbooks[data["symbol"]] = ob
+            else:
+                bids = data["bids"]
+                asks = data["asks"]
+                orderbook = self.orderbooks.get(data["symbol"])
+                if not orderbook:
+                    return
+                if bids:
+                    for price, quantity in bids.items():
+                        if quantity == 0:
+                            del orderbook.bids[int(price)]
+                        else:
+                            orderbook.bids[int(price)] = quantity
+                if asks:
+                    for price, quantity in asks.items():
+                        if quantity == 0:
+                            del orderbook.asks[int(price)]
+                        else:
+                            orderbook.asks[int(price)] = quantity
+
         else:
             print("Unhandled type: {}".format(msg))
 
@@ -327,4 +394,9 @@ class KolliderWsClient(object):
 if __name__ in "__main__":
     import time
     ws_client = KolliderWsClient()
+
     ws_client.connect(BASE_URL)
+    time.sleep(1)
+    ws_client.fetch_orderbook("BTCUSD.PERP")
+    while True:
+        time.sleep(1)
